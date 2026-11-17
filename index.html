@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B1316">
+<title>Royal QR Scanner</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#0B1316;--card:#121E22;--card2:#1A2A30;--line:#22363D;--tx:#E5E7EB;--mut:#8C9AA0;--gold:#F59E0B;--em:#10B981;--red:#EF4444;--amb:#F59E0B}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg)}
+body{color:var(--tx);font-family:Inter,Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+button:disabled{opacity:.4}
+input,textarea,select{font:inherit;color:inherit;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px;width:100%;outline:none}
+input:focus,textarea:focus{border-color:var(--gold)}
+.app{position:fixed;inset:0;display:flex;flex-direction:column;max-width:520px;margin:0 auto;background:var(--bg)}
+.main{flex:1;position:relative;min-height:0}
+.scr{position:absolute;inset:0;display:none;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 16px 16px;-webkit-overflow-scrolling:touch}
+.scr.on{display:block}
+#s-scan{padding:0;overflow:hidden;background:#000}
+.hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.hdr h1{flex:1;margin:0;font-size:19px;font-weight:700;text-align:center}
+.ib{width:42px;height:42px;border-radius:14px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;font-size:17px;flex:0 0 42px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:12px}
+.muted{color:var(--mut);font-size:12px;line-height:1.5}
+.gold{color:var(--gold)}
+.btn{padding:14px;border-radius:14px;font-weight:700;background:var(--gold);color:#111;text-align:center;display:block;width:100%}
+.btn2{background:var(--card2);border:1px solid var(--gold);color:var(--gold)}
+.btn.sm{padding:9px 12px;width:auto;font-size:13px}
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid}
+.b-web{color:var(--gold);border-color:#F59E0B66}
+.b-upi{color:var(--em);border-color:#10B98166}
+.b-wifi{color:#60A5FA;border-color:#60A5FA66}
+.b-con{color:#C084FC;border-color:#C084FC66}
+.b-txt{color:var(--mut);border-color:var(--line)}
+/* scanner */
+#vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.dim{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 30%,rgba(0,0,0,.6) 100%)}
+.stop{position:absolute;top:calc(14px + env(safe-area-inset-top));left:16px;right:16px;display:flex;justify-content:space-between;align-items:center}
+.pill{background:rgba(16,185,129,.18);border:1px solid var(--em);color:var(--em);padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700}
+.gbtn{width:44px;height:44px;border-radius:14px;background:rgba(18,30,34,.85);border:1px solid var(--gold);display:grid;place-items:center;font-size:19px}
+.gbtn.on{background:var(--gold)}
+.frame{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:min(64vw,300px);aspect-ratio:1;}
+.c{position:absolute;width:44px;height:44px;border-color:var(--gold);border-style:solid;border-width:0;filter:drop-shadow(0 0 6px rgba(245,158,11,.8))}
+.tl{top:0;left:0;border-top-width:4px;border-left-width:4px;border-radius:14px 0 0 0}
+.tr{top:0;right:0;border-top-width:4px;border-right-width:4px;border-radius:0 14px 0 0}
+.bl{bottom:0;left:0;border-bottom-width:4px;border-left-width:4px;border-radius:0 0 0 14px}
+.br{bottom:0;right:0;border-bottom-width:4px;border-right-width:4px;border-radius:0 0 14px 0}
+.laser{position:absolute;left:8%;right:8%;height:3px;top:0;background:linear-gradient(90deg,transparent,var(--gold),transparent);box-shadow:0 0 14px var(--gold);animation:scan 2.2s ease-in-out infinite}
+@keyframes scan{0%{top:6%}50%{top:92%}100%{top:6%}}
+.zoomw{position:absolute;right:14px;top:50%;transform:translateY(-50%);height:200px;width:40px;display:flex;align-items:center;justify-content:center}
+.zoomw input{position:absolute;width:200px;height:40px;transform:rotate(-90deg);accent-color:var(--gold);background:transparent;border:0;padding:0}
+.gal{position:absolute;left:50%;transform:translateX(-50%);bottom:18px;padding:13px 22px;border-radius:14px;background:var(--gold);color:#111;font-weight:700;white-space:nowrap}
+.camMsg{position:absolute;left:16px;right:16px;top:calc(80px + env(safe-area-inset-top));text-align:center;color:var(--tx);background:rgba(18,30,34,.9);border-radius:12px;padding:10px;font-size:13px;display:none}
+.camMsg.on{display:block}
+/* safe */
+.shield{width:120px;height:120px;margin:10px auto 6px;border-radius:50%;display:grid;place-items:center;font-size:56px;border:3px solid}
+.sv-safe{color:var(--em);border-color:var(--em);background:rgba(16,185,129,.12);box-shadow:0 0 28px rgba(16,185,129,.35)}
+.sv-warn{color:var(--amb);border-color:var(--amb);background:rgba(245,158,11,.12);box-shadow:0 0 28px rgba(245,158,11,.3)}
+.sv-danger{color:var(--red);border-color:var(--red);background:rgba(239,68,68,.12);box-shadow:0 0 28px rgba(239,68,68,.35)}
+.verdict{text-align:center;font-size:20px;font-weight:800;margin:8px 0 4px}
+.v-safe{color:var(--em)}.v-warn{color:var(--amb)}.v-danger{color:var(--red)}
+.urlbox{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px;word-break:break-all;font-size:14px;margin:14px 0}
+ul.rs{padding-left:18px;margin:6px 0 0}
+ul.rs li{margin:4px 0;color:var(--mut);font-size:13px}
+/* create */
+.tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px;margin-bottom:14px}
+.tabs button{flex:1;padding:10px 4px;border-radius:10px;color:var(--mut);font-weight:600;font-size:13px}
+.tabs button.on{background:var(--card2);color:var(--gold);border:1px solid var(--gold)}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12px;color:var(--mut);margin-bottom:6px}
+.qrcard{background:#fff;border:2px solid var(--gold);border-radius:18px;padding:14px;text-align:center;margin:12px 0;box-shadow:0 0 24px rgba(245,158,11,.25)}
+.qrcard canvas{width:100%;max-width:300px;height:auto;display:block;margin:0 auto}
+.qrph{color:#555;padding:40px 0;font-size:13px}
+/* history */
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+.chips button{padding:8px 14px;border-radius:999px;border:1px solid var(--line);color:var(--mut);white-space:nowrap;font-size:13px}
+.chips button.on{border-color:var(--gold);color:var(--gold);background:rgba(245,158,11,.1)}
+.hi{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:8px;cursor:pointer}
+.hi .t{flex:1;min-width:0}
+.hi .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;flex:0 0 10px}
+.d-safe{background:var(--em)}.d-warn{background:var(--amb)}.d-danger{background:var(--red)}
+.exp{display:flex;gap:10px;margin-top:12px}
+/* banner + nav */
+.banner{height:52px;margin:6px 12px;border:1px dashed #3A4D55;border-radius:10px;display:grid;place-items:center;font-size:12px;color:var(--mut);flex:0 0 auto}
+.banner.hide{display:none}
+.nav{display:flex;background:#0E181B;border-top:1px solid var(--line);padding:6px 0 calc(6px + env(safe-area-inset-bottom));flex:0 0 auto}
+.nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--mut);padding:4px}
+.nav button.on{color:var(--gold);font-weight:700}
+.nav .ico{font-size:19px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;justify-content:center;z-index:40}
+.modal.on{display:flex}
+.sheet{background:var(--card);width:100%;max-width:520px;border-radius:22px 22px 0 0;padding:18px;max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.toggle{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.toggle input{width:auto;accent-color:var(--gold);transform:scale(1.3)}
+.toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%) translateY(20px);background:var(--gold);color:#111;padding:10px 16px;border-radius:12px;font-weight:700;opacity:0;transition:.25s;pointer-events:none;z-index:60;max-width:90%;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%)}
+#printArea{display:none}
+@media print{html,body{height:auto;overflow:visible;background:#fff}.app,.modal,.toast{display:none!important}#printArea{display:block!important;color:#000}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="main">
+
+    <!-- 1. SCANNER -->
+    <section class="scr on" id="s-scan">
+      <video id="vid" playsinline muted></video>
+      <div class="dim"></div>
+      <div class="stop">
+        <span class="pill">● 100% Offline</span>
+        <button class="gbtn" id="torch" aria-label="Flashlight">🔦</button>
+      </div>
+      <div class="frame" aria-hidden="true">
+        <i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
+        <div class="laser"></div>
+      </div>
+      <div class="zoomw" id="zoomW"><input type="range" id="zoom" min="1" max="3" step="0.1" value="1" aria-label="Zoom"></div>
+      <div class="camMsg" id="camMsg"></div>
+      <button class="gal" id="gal">🖼️ Gallery Import</button>
+    </section>
+
+    <!-- 2. SAFE GUARD -->
+    <section class="scr" id="s-safe">
+      <div class="hdr"><button class="ib" data-go="scan" aria-label="Wapas">←</button><h1>Scan Result</h1><span style="width:42px"></span></div>
+      <div id="safeEmpty" class="card" style="text-align:center">
+        <div class="shield sv-safe" style="font-size:40px">🛡️</div>
+        <p class="muted">Abhi koi result nahi. Scan karein, ya neeche link paste karke check karein.</p>
+      </div>
+      <div id="safeBody" style="display:none">
+        <div style="text-align:center"><span class="badge" id="sType"></span></div>
+        <div class="shield" id="sShield">✓</div>
+        <div class="verdict" id="sVerdict"></div>
+        <div class="muted" id="sSub" style="text-align:center"></div>
+        <div class="urlbox" id="sUrl"></div>
+        <div class="card" id="sReasons" style="padding:12px"></div>
+        <div class="row">
+          <button class="btn" id="sOpen">Open Link</button>
+          <button class="btn btn2" id="sCopy">Copy Link</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <b>Link manually check karein</b>
+        <div class="muted" style="margin:4px 0 10px">Koi bhi link ya UPI/Wi-Fi text paste karein.</div>
+        <input id="manual" placeholder="https://..." autocomplete="off">
+        <button class="btn btn2" id="manualBtn" style="margin-top:10px">Check karein</button>
+      </div>
+      <p class="muted" style="text-align:center">Ye check phone ke andar hota hai. Ye sirf ek indicator hai, 100% guarantee nahi.</p>
+    </section>
+
+    <!-- 3. CREATE QR -->
+    <section class="scr" id="s-create">
+      <div class="hdr"><h1>Create QR</h1></div>
+      <div class="tabs">
+        <button class="on" data-tab="wifi">Wi-Fi</button>
+        <button data-tab="upi">UPI Payment</button>
+        <button data-tab="text">Text / URL</button>
+      </div>
+      <div id="t-wifi">
+        <div class="field"><label>SSID (Network Name)</label><input id="wSsid" placeholder="Home WiFi"></div>
+        <div class="field"><label>Password</label><input id="wPass" type="password" placeholder="Password"></div>
+      </div>
+      <div id="t-upi" style="display:none">
+        <div class="field"><label>UPI ID</label><input id="uId" placeholder="name@upi"></div>
+        <div class="field"><label>Naam (Payee name)</label><input id="uName" placeholder="Royal Rajawat"></div>
+        <div class="field"><label>Amount (optional, ₹)</label><input id="uAmt" inputmode="decimal" placeholder="100"></div>
+      </div>
+      <div id="t-text" style="display:none">
+        <div class="field"><label>Text ya URL</label><textarea id="tTxt" rows="3" placeholder="https://example.com"></textarea></div>
+      </div>
+      <button class="btn" id="genBtn">QR banayein</button>
+      <div class="qrcard"><div id="qrBox" class="qrph">QR yahan dikhega</div></div>
+      <div class="row">
+        <button class="btn btn2" id="saveQr" disabled>💾 Save QR</button>
+        <button class="btn btn2" id="shareQr" disabled>📤 Share</button>
+      </div>
+    </section>
+
+    <!-- 4. HISTORY -->
+    <section class="scr" id="s-hist">
+      <div class="hdr"><h1>History</h1><button class="ib" id="gear" aria-label="Settings">⚙️</button></div>
+      <input id="search" placeholder="🔍 Scans search karein…" style="margin-bottom:12px">
+      <div class="chips" id="chips">
+        <button class="on" data-f="all">All</button><button data-f="Website">Web</button><button data-f="UPI">UPI</button><button data-f="Wi-Fi">Wi-Fi</button><button data-f="Contact">Contact</button><button data-f="Text">Text</button>
+      </div>
+      <div id="hlist"></div>
+      <div class="exp">
+        <button class="btn btn2" id="expCsv">Export CSV</button>
+        <button class="btn btn2" id="expPdf">Export PDF</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="banner" id="banner">Sponsored banner ad slot (sirf native app mein dikhega)</div>
+  <nav class="nav">
+    <button class="on" data-go="scan"><span class="ico">📷</span>Scan</button>
+    <button data-go="safe"><span class="ico">🛡️</span>Safe</button>
+    <button data-go="create"><span class="ico">➕</span>Create</button>
+    <button data-go="hist"><span class="ico">🕘</span>History</button>
+  </nav>
+</div>
+
+<!-- Settings -->
+<div class="modal" id="mSet"><div class="sheet">
+  <div class="row" style="align-items:center"><b style="flex:1;font-size:17px">Settings</b><button class="ib" data-close="mSet">✕</button></div>
+  <div class="toggle"><span>Vibrate on Scan</span><input type="checkbox" id="setVib"></div>
+  <div class="toggle"><span>Sound on Scan</span><input type="checkbox" id="setSnd"></div>
+  <div class="card" style="margin:0"><b>Ad-Free Mode</b>
+    <div class="muted" id="adStat" style="margin:4px 0 10px"></div>
+    <button class="btn" id="adWatch">▶ Video dekhein — 24 ghante ad-free</button>
+  </div>
+  <button class="btn btn2" id="clearHist" style="border-color:var(--red);color:var(--red)">🗑️ Saari history delete karein</button>
+  <p class="muted">Royal QR & Barcode Scanner v1.0 · Scanning, QR banana aur history sab offline hai.</p>
+</div></div>
+
+<!-- Rewarded (simulated) -->
+<div class="modal" id="mAd"><div class="sheet">
+  <b>▶ Video Ad</b>
+  <div class="muted">Ad dekhne ke baad 24 ghante tak banner nahi dikhega aur PDF export khulega.</div>
+  <div class="card" style="text-align:center;height:150px;display:grid;place-items:center;margin:0"><div>Ad yahan chalega (native app mein)<br><span id="adCnt" class="gold" style="font-size:28px;font-weight:800">5</span></div></div>
+  <button class="btn" id="adDone" disabled>Continue</button>
+  <button class="btn btn2" data-close="mAd">Band karein</button>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fGal" accept="image/*" hidden>
+<div id="printArea"></div>
+
+<script src="qr-lib.js"></script>
+<script>
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS={
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){toast('Storage bhar gaya ya band hai');return false}},
+  del(k){try{localStorage.removeItem(k)}catch(e){}}
+};
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2200)}
+let hist=LS.get('rq_hist',[]);if(!Array.isArray(hist))hist=[];
+let sets=Object.assign({vib:true,snd:true},LS.get('rq_set',{}));
+const adFree=()=>(LS.get('rq_adfree',0)||0)>Date.now();
+function saveHist(){LS.set('rq_hist',hist.slice(0,500))}
+
+/* ---------- NAV ---------- */
+let curScr='scan';
+function go(name){
+  curScr=name;
+  const map={scan:'s-scan',safe:'s-safe',create:'s-create',hist:'s-hist'};
+  $$('.scr').forEach(s=>s.classList.toggle('on',s.id===map[name]));
+  $$('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.go===name));
+  if(name==='scan')startCam();else stopCam();
+  if(name==='hist')renderHist();
+  if(name==='safe')renderSafeEmpty();
+}
+
+/* ---------- CAMERA + LIVE SCAN ---------- */
+let stream=null,track=null,camTimer=null,busy=false,torchOn=false;
+const hasBD='BarcodeDetector' in window;
+let det=null;
+async function getDet(){
+  if(!hasBD)return null;
+  if(!det){try{det=new BarcodeDetector({formats:['qr_code','code_128','code_39','ean_13','ean_8','upc_a','upc_e','data_matrix','pdf417','aztec','itf','codabar']})}catch(e){det=new BarcodeDetector()}}
+  return det;
+}
+function camMsg(t){const m=$('#camMsg');if(t){m.textContent=t;m.classList.add('on')}else m.classList.remove('on')}
+async function startCam(){
+  if(stream)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){camMsg('Camera is browser mein support nahi. Gallery Import use karein.');return}
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
+    track=stream.getVideoTracks()[0];
+    const v=$('#vid');v.srcObject=stream;await v.play();
+    camMsg('');
+    const caps=track.getCapabilities?track.getCapabilities():{};
+    $('#torch').style.display=caps.torch?'':'none';
+    if(caps.zoom){$('#zoom').min=caps.zoom.min;$('#zoom').max=caps.zoom.max;$('#zoom').step=caps.zoom.step||0.1;$('#zoom').value=caps.zoom.min;$('#zoomW').style.display=''}
+    else $('#zoomW').style.display='none';
+    if(!hasBD)camMsg('Ye browser live QR scan support nahi karta. Gallery Import se QR decode karein (Chrome use karein).');
+    camTimer=setInterval(scanFrame,250);
+  }catch(e){
+    camMsg('Camera permission nahi mili. Browser settings mein camera allow karein, ya Gallery Import use karein.');
+  }
+}
+function stopCam(){
+  clearInterval(camTimer);camTimer=null;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;track=null}
+  torchOn=false;$('#torch').classList.remove('on');
+}
+async function scanFrame(){
+  if(busy||!hasBD)return;
+  const v=$('#vid');if(v.readyState<2)return;
+  busy=true;
+  try{
+    const d=await getDet();
+    const codes=await d.detect(v);
+    if(codes.length&&codes[0].rawValue)onFound(codes[0].rawValue,codes[0].format);
+  }catch(e){}
+  busy=false;
+}
+$('#torch').onclick=async()=>{
+  if(!track)return;
+  torchOn=!torchOn;
+  try{await track.applyConstraints({advanced:[{torch:torchOn}]});$('#torch').classList.toggle('on',torchOn)}
+  catch(e){torchOn=false;toast('Flashlight is phone par nahi chal raha')}
+};
+$('#zoom').oninput=async e=>{
+  if(!track)return;
+  try{await track.applyConstraints({advanced:[{zoom:+e.target.value}]})}catch(err){}
+};
+
+/* ---------- GALLERY DECODE ---------- */
+$('#gal').onclick=()=>$('#fGal').click();
+$('#fGal').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  if(!hasBD){toast('Is browser mein QR decode support nahi. Chrome use karein');return}
+  try{
+    const bmp=await createImageBitmap(f);
+    const d=await getDet();
+    const codes=await d.detect(bmp);
+    bmp.close&&bmp.close();
+    if(codes.length)onFound(codes[0].rawValue,codes[0].format);
+    else toast('Is photo mein QR/barcode nahi mila');
+  }catch(err){toast('Photo decode nahi hui')}
+};
+
+/* ---------- CLASSIFY + ANALYZE (offline heuristics) ---------- */
+function classify(t){
+  const s=t.trim();
+  if(/^upi:\/\//i.test(s))return'UPI';
+  if(/^WIFI:/i.test(s))return'Wi-Fi';
+  if(/^https?:\/\//i.test(s)||/^www\./i.test(s))return'Website';
+  if(/^(BEGIN:VCARD|MECARD:|tel:|mailto:|smsto:|sms:)/i.test(s))return'Contact';
+  return'Text';
+}
+const SHORT=['bit.ly','tinyurl.com','t.co','goo.gl','is.gd','cutt.ly','rb.gy','ow.ly'];
+const BADTLD=['zip','mov','top','xyz','click','tk','ml','ga','cf','gq','work','country'];
+const KW=['login','verify','secure','update','bank','kyc','otp','account','signin','wallet','reward','free-gift','prize'];
+function analyze(t,type){
+  const reasons=[];let level='safe';
+  const up=(r,l)=>{reasons.push(r);if(l==='danger')level='danger';else if(l==='warn'&&level==='safe')level='warn'};
+  if(type==='Website'){
+    let u;
+    try{u=new URL(/^www\./i.test(t)?'https://'+t:t)}catch(e){return{level:'danger',reasons:['Link ka format galat hai']}}
+    const host=u.hostname.toLowerCase();
+    if(u.protocol!=='https:')up('HTTPS nahi hai (data encrypted nahi ho sakta)','warn');
+    if(/^\d{1,3}(\.\d{1,3}){3}$/.test(host))up('Link mein domain ki jagah IP address hai','danger');
+    if(t.includes('@'))up('Link mein "@" hai, jo asli site chhupa sakta hai','danger');
+    if(host.includes('xn--'))up('Punycode domain (fake lookalike ho sakta hai)','warn');
+    if(SHORT.some(d=>host===d||host.endsWith('.'+d)))up('Short link hai, asli destination chhupi hai','warn');
+    const tld=host.split('.').pop();
+    if(BADTLD.includes(tld))up('Sasta/risky domain extension (.'+tld+')','warn');
+    if(host.split('.').length>4)up('Bahut saare subdomains','warn');
+    const kws=KW.filter(k=>(host+u.pathname).includes(k));
+    if(kws.length>=2)up('Login/verify jaise shabd: '+kws.join(', '),'danger');
+    else if(kws.length===1)up('Login/verify jaisa shabd: '+kws[0],'warn');
+    if(t.length>200)up('Bahut lamba link','warn');
+    if(!reasons.length)reasons.push('Koi khatre ka nishaan nahi mila');
+  }else if(type==='UPI'){
+    const pa=/[?&]pa=([^&]+)/i.exec(t);
+    if(!pa)up('UPI ID nahi mila','danger');
+    else if(!decodeURIComponent(pa[1]).includes('@'))up('UPI ID ka format galat hai','danger');
+    else reasons.push('UPI ID: '+decodeURIComponent(pa[1]));
+    const am=/[?&]am=([^&]+)/i.exec(t);if(am)reasons.push('Amount: ₹'+decodeURIComponent(am[1]));
+    reasons.push('Payment se pehle naam aur amount khud check karein');
+  }else if(type==='Wi-Fi'){
+    const sec=/T:([^;]*)/i.exec(t);const pw=/P:([^;]*)/i.exec(t);
+    if(sec&&/nopass|^$/i.test(sec[1]))up('Open Wi-Fi (koi password nahi)','warn');
+    else reasons.push('Password wala Wi-Fi network');
+    if(!/S:/i.test(t))up('Network ka naam (SSID) nahi mila','warn');
+    if(pw&&!pw[1]&&sec&&!/nopass/i.test(sec[1]))up('Password khali hai','warn');
+  }else if(type==='Contact'){
+    reasons.push('Contact ya call/mail ki jaankari');
+  }else{
+    reasons.push('Plain text');
+  }
+  return{level,reasons};
+}
+const TYPE_ICON={Website:'🌐',UPI:'💳','Wi-Fi':'📶',Contact:'👤',Text:'📝'};
+const TYPE_CLS={Website:'b-web',UPI:'b-upi','Wi-Fi':'b-wifi',Contact:'b-con',Text:'b-txt'};
+
+/* ---------- FOUND -> RESULT ---------- */
+let current=null;
+function onFound(text,format){
+  if(sets.vib&&navigator.vibrate)navigator.vibrate(120);
+  if(sets.snd)beep();
+  const type=classify(text);
+  const a=analyze(text,type);
+  const item={id:uid(),content:text,type,format:format||'',verdict:a.level,reasons:a.reasons,at:Date.now()};
+  hist.unshift(item);saveHist();
+  showResult(item);
+  go('safe');
+}
+let actx=null;
+function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=1800;g.gain.value=.08;o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+.09)}catch(e){}}
+
+/* ---------- SAFE SCREEN ---------- */
+const VERD={safe:{t:'No red flags found',s:'✓',c:'safe'},warn:{t:'Savdhaan — check karein',s:'!',c:'warn'},danger:{t:'Khatarnak — mat kholein',s:'✕',c:'danger'}};
+function showResult(item){
+  current=item;
+  const v=VERD[item.verdict];
+  $('#safeEmpty').style.display='none';$('#safeBody').style.display='';
+  $('#sType').textContent=item.type;$('#sType').className='badge '+TYPE_CLS[item.type];
+  $('#sShield').textContent=v.s;$('#sShield').className='shield sv-'+v.c;
+  $('#sVerdict').textContent=v.t;$('#sVerdict').className='verdict v-'+v.c;
+  $('#sSub').textContent=item.type==='UPI'?'UPI payment':item.type==='Wi-Fi'?'Wi-Fi network':'Scan result';
+  $('#sUrl').textContent=item.content;
+  $('#sReasons').innerHTML='<b style="font-size:13px">Check ka nateeja</b><ul class="rs">'+item.reasons.map(r=>`<li>${esc(r)}</li>`).join('')+'</ul><div class="muted" style="margin-top:8px">Ye offline check hai, 100% guarantee nahi.</div>';
+  const canOpen=/^https?:\/\//i.test(item.content)||/^www\./i.test(item.content)||item.type==='UPI';
+  $('#sOpen').style.display=canOpen?'':'none';
+  $('#sOpen').textContent=item.type==='UPI'?'Open in UPI App':'Open Link';
+  $('#sCopy').textContent='Copy Link';
+}
+function renderSafeEmpty(){
+  if(!current){$('#safeEmpty').style.display='';$('#safeBody').style.display='none'}
+}
+$('#sOpen').onclick=()=>{
+  if(!current)return;
+  let url=current.content;if(/^www\./i.test(url))url='https://'+url;
+  if(current.verdict==='danger'&&!confirm('Ye link khatarnak lag raha hai. Phir bhi kholen?'))return;
+  if(/^https?:\/\//i.test(url))window.open(url,'_blank','noopener');
+  else location.href=url;
+};
+$('#sCopy').onclick=async()=>{
+  if(!current)return;
+  try{await navigator.clipboard.writeText(current.content);toast('Copy ho gaya ✅')}
+  catch(e){const ta=document.createElement('textarea');ta.value=current.content;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Copy ho gaya ✅')}catch(err){toast('Copy nahi ho paya')}ta.remove()}
+};
+$('#manualBtn').onclick=()=>{
+  const t=$('#manual').value.trim();
+  if(!t){toast('Pehle link paste karein');return}
+  const type=classify(t),a=analyze(t,type);
+  const item={id:uid(),content:t,type,format:'manual',verdict:a.level,reasons:a.reasons,at:Date.now()};
+  hist.unshift(item);saveHist();showResult(item);$('#manual').value='';
+};
+
+/* ---------- CREATE QR (offline encoder) ---------- */
+let qrTab='wifi',qrCanvas=null;
+function setTab(t){
+  qrTab=t;
+  $$('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  ['wifi','upi','text'].forEach(n=>$('#t-'+n).style.display=n===t?'':'none');
+}
+function buildPayload(){
+  if(qrTab==='wifi'){
+    const s=$('#wSsid').value.trim(),p=$('#wPass').value;
+    if(!s){toast('Wi-Fi ka naam (SSID) likhein');return null}
+    const esc2=x=>x.replace(/[\;,:"]/g,m=>'\\'+m);
+    return p?`WIFI:T:WPA;S:${esc2(s)};P:${esc2(p)};;`:`WIFI:T:nopass;S:${esc2(s)};;`;
+  }
+  if(qrTab==='upi'){
+    const id=$('#uId').value.trim(),nm=$('#uName').value.trim(),am=$('#uAmt').value.trim();
+    if(!/^[\w.\-]+@[\w.\-]+$/.test(id)){toast('Sahi UPI ID likhein (name@bank)');return null}
+    let u=`upi://pay?pa=${encodeURIComponent(id)}`;
+    if(nm)u+=`&pn=${encodeURIComponent(nm)}`;
+    if(am){if(!(+am>0)){toast('Amount sahi likhein');return null}u+=`&am=${encodeURIComponent(am)}&cu=INR`}
+    return u;
+  }
+  const t=$('#tTxt').value.trim();
+  if(!t){toast('Text ya URL likhein');return null}
+  return t;
+}
+function drawQR(text){
+  const q=new QRCodeLib.QRCode(-1,QRCodeLib.QRErrorCorrectLevel.M);
+  q.addData(text);q.make();
+  const n=q.getModuleCount(),quiet=4;
+  const scale=Math.max(4,Math.floor(900/(n+quiet*2)));
+  const size=(n+quiet*2)*scale;
+  const c=document.createElement('canvas');c.width=size;c.height=size;
+  const x=c.getContext('2d');
+  x.fillStyle='#FFFFFF';x.fillRect(0,0,size,size);
+  x.fillStyle='#0B1316';
+  for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect((k+quiet)*scale,(r+quiet)*scale,scale,scale);
+  return c;
+}
+$$('.tabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+$('#genBtn').onclick=()=>{
+  const payload=buildPayload();if(!payload)return;
+  try{
+    qrCanvas=drawQR(payload);
+    const box=$('#qrBox');box.className='';box.innerHTML='';
+    qrCanvas.style.maxWidth='300px';box.appendChild(qrCanvas);
+    $('#saveQr').disabled=false;$('#shareQr').disabled=false;
+    if(!hist.some(h=>h.format==='created'&&h.content===payload)){
+      hist.unshift({id:uid(),content:payload,type:classify(payload),format:'created',verdict:'safe',reasons:['Aapne ye QR banaya'],at:Date.now()});saveHist();
+    }
+  }catch(e){toast('Ye text bahut lamba hai, chhota karein')}
+};
+function qrBlob(){return new Promise(r=>qrCanvas.toBlob(r,'image/png'))}
+$('#saveQr').onclick=async()=>{
+  if(!qrCanvas)return;
+  const b=await qrBlob();const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='royal-qr-'+Date.now()+'.png';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
+  toast('QR PNG save ho raha hai ✅');
+};
+$('#shareQr').onclick=async()=>{
+  if(!qrCanvas)return;
+  const b=await qrBlob();
+  const file=new File([b],'royal-qr.png',{type:'image/png'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:'QR Code'})}catch(e){}
+  }else{$('#saveQr').click();toast('Share support nahi, PNG save ho gaya')}
+};
+
+/* ---------- HISTORY ---------- */
+let hFilter='all';
+function filtered(){
+  const q=$('#search').value.trim().toLowerCase();
+  return hist.filter(h=>(hFilter==='all'||h.type===hFilter)&&(!q||(h.content+' '+h.type).toLowerCase().includes(q)));
+}
+function renderHist(){
+  $$('#chips button').forEach(b=>b.classList.toggle('on',b.dataset.f===hFilter));
+  const list=filtered();
+  $('#hlist').innerHTML=list.map(h=>`<div class="hi" data-hid="${h.id}">
+      <span class="dot d-${h.verdict}"></span>
+      <div style="font-size:20px">${TYPE_ICON[h.type]||'📝'}</div>
+      <div class="t"><span class="badge ${TYPE_CLS[h.type]}" style="margin-bottom:4px">${h.type}</span><b>${esc(h.content)}</b><span class="muted">${new Date(h.at).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span></div>
+      <button class="ib" data-hdel="${h.id}" aria-label="Delete" style="width:34px;height:34px;flex:0 0 34px;font-size:14px">✕</button>
+    </div>`).join('')||'<p class="muted" style="text-align:center;margin-top:24px">Abhi koi history nahi. Scan ya QR banayein.</p>';
+}
+function csvEsc(s){return '"'+String(s).replace(/"/g,'""')+'"'}
+function expCsv(){
+  const rows=[['date','type','content','verdict'],...hist.map(h=>[new Date(h.at).toISOString(),h.type,h.content,h.verdict])];
+  const txt='﻿'+rows.map(r=>r.map(csvEsc).join(',')).join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));
+  a.download='royal-scan-history-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
+  toast('CSV download ho raha hai ✅');
+}
+function buildPdf(){
+  $('#printArea').innerHTML=`<h2>Royal QR Scanner — History</h2><p>${hist.length} entries</p>
+   <table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;font-size:12px">
+   <tr><th>Date</th><th>Type</th><th>Content</th><th>Verdict</th></tr>
+   ${hist.map(h=>`<tr><td>${new Date(h.at).toLocaleString('en-IN')}</td><td>${esc(h.type)}</td><td style="word-break:break-all">${esc(h.content)}</td><td>${esc(h.verdict)}</td></tr>`).join('')}
+   </table>`;
+}
+let adInt=null;
+function openAd(){
+  $('#mAd').classList.add('on');
+  let n=5;$('#adDone').disabled=true;$('#adCnt').textContent=n;
+  clearInterval(adInt);
+  adInt=setInterval(()=>{n--;if(n>0)$('#adCnt').textContent=n;else{clearInterval(adInt);$('#adCnt').textContent='✓';$('#adDone').disabled=false}},1000);
+}
+function pdfExport(){
+  if(adFree()){buildPdf();setTimeout(()=>window.print(),100);return}
+  openAd();
+  $('#adDone').onclick=()=>{$('#mAd').classList.remove('on');buildPdf();setTimeout(()=>window.print(),150)};
+}
+$('#expCsv').onclick=()=>hist.length?expCsv():toast('Export ke liye history khali hai');
+$('#expPdf').onclick=()=>hist.length?pdfExport():toast('Export ke liye history khali hai');
+$('#search').oninput=renderHist;
+$('#chips').onclick=e=>{const b=e.target.closest('[data-f]');if(b){hFilter=b.dataset.f;renderHist()}};
+$('#hlist').onclick=e=>{
+  const d=e.target.closest('[data-hdel]');
+  if(d){hist=hist.filter(h=>h.id!==d.dataset.hdel);saveHist();renderHist();return}
+  const row=e.target.closest('[data-hid]');
+  if(row){const it=hist.find(h=>h.id===row.dataset.hid);if(it){showResult(it);go('safe')}}
+};
+
+/* ---------- SETTINGS ---------- */
+function renderAdStat(){
+  const left=(LS.get('rq_adfree',0)||0)-Date.now();
+  $('#adStat').textContent=left>0?`Ad-free active: ${Math.ceil(left/3600000)} ghante baaki`:'Abhi ads ON hain. Video dekh kar 24 ghante ke liye band karein.';
+  $('#banner').classList.toggle('hide',left>0);
+}
+$('#gear').onclick=()=>{$('#setVib').checked=sets.vib;$('#setSnd').checked=sets.snd;renderAdStat();$('#mSet').classList.add('on')};
+$('#setVib').onchange=e=>{sets.vib=e.target.checked;LS.set('rq_set',sets)};
+$('#setSnd').onchange=e=>{sets.snd=e.target.checked;LS.set('rq_set',sets)};
+$('#adWatch').onclick=()=>{
+  $('#mSet').classList.remove('on');
+  openAd();
+  $('#adDone').onclick=()=>{LS.set('rq_adfree',Date.now()+24*3600*1000);$('#mAd').classList.remove('on');renderAdStat();toast('24 ghante ad-free ✅');$('#banner').classList.add('hide')};
+};
+$('#clearHist').onclick=()=>{if(confirm('Saari history delete karein?')){hist=[];saveHist();renderHist();current=null;$('#mSet').classList.remove('on');toast('History delete ho gayi')}};
+$$('[data-close]').forEach(b=>b.onclick=()=>$('#'+b.dataset.close).classList.remove('on'));
+
+/* ---------- INIT ---------- */
+$$('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.go));
+$$('[data-go]').forEach(b=>{if(!b.closest('.nav'))b.onclick=()=>go(b.dataset.go)});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCam();else if(curScr==='scan')startCam()});
+go('scan');
+if(!hasBD)camMsg('Ye browser live QR scan support nahi karta. Chrome use karein ya Gallery Import use karein.');
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
